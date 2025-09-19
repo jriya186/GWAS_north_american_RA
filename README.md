@@ -39,4 +39,7 @@ High PRS variance explained likely reflects technical issues (overlap, p-value t
 ## Takeaway
 This project provided hands-on experience with genome-wide association pipelines and reinforced the importance of QC, population stratification control, and sex-stratified analysis in complex trait genetics. It also highlighted the caveats of PRS interpretation when working with overlapping or non-independent datasets.
 
+## Note
+Both bash and R scripts were converted to txt files for easier upload.  
+Results and plots can be seen in the pdf file, which acts as a report for the project. Thank you!
 
