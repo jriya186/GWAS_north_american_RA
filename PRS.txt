@@ -1,0 +1,23 @@
+module load prsice
+
+Rscript $SCC_PRSICE_BIN/PRSice.R --dir . \
+  --prsice $SCC_PRSICE_BIN/PRSice \
+  --base /projectnb/bs859/students/jriya186/FINAL_PROJECT/RA_European.txt \
+  --target /projectnb/bs859/students/jriya186/FINAL_PROJECT/LDpruned \
+  --stat OR \
+  --snp SNPID \
+  --A1 A1 \
+  --A2 A2 \
+  --pvalue P\
+  --cov-file narac_pcs.txt \
+  --cov-col PC1,PC2,PC4 \
+  --lower 0.05 \
+  --upper 0.05 \
+  --interval 1 \
+  --bar-levels 0.05 \
+  --fastscore \
+  --perm 1000 \
+  --clump-kb 500 \
+  --seed 1443 \
+  --binary-target T \
+  --out RA_NARAC_TARGET

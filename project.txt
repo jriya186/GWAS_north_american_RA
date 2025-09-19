@@ -1,0 +1,125 @@
+# checking individuals and variants 
+wc -l narac_hg19.fam       # 2062 individuals - matches project doc (868 cases + 1194 controls)
+wc -l narac_hg19.bim       # 544276 variants 
+
+#load module 
+module load plink/1.90b6.27
+module load eigensoft
+module load metal
+
+# DATA CLEANING
+
+# checking for inconsistencies in the sex column in the fam file
+awk '{if ($5 != 1 && $5 !=2) {print "Invalid value:", $5}}' narac_hg19.fam
+## no output --> all the sex data is available 
+
+# checking the frequency 
+plink --bfile narac_hg19 --freq --out frequency
+# genotyping rate - 0.99269 - good quality data 
+
+# HWE
+plink -bfile narac_hg19 --hardy --out hwe
+
+awk 'NR==1||$6 ~ /^0\//' hwe.hwe > no_minor.txt
+# there are 89296 variants where no individuals are homozygous with minor allele
+
+# filtering
+plink --bfile narac_hg19 --maf 0.01 --geno 0.05 --mind 0.05 --hwe 1e-6 --make-bed --out filtered
+
+#missing genotype test by case status 
+plink --bfile filtered --test-missing --out cctest 
+awk 'NR==1 || $5 < 0.0001' cctest.missing > cctest0001.missing # found 6504 snps
+
+#extracting the bad snps 
+awk 'NR > 1 {print $2}' cctest0001.missing > bad_snps.txt
+plink --bfile filtered --exclude bad_snps.txt --make-bed --out filtered_clean
+
+#pruning
+plink --bfile filtered_clean --indep-pairwise 10000kb 1 0.2 --out try1
+plink --bfile filtered_clean --extract try1.prune.in --chr 1-22 --make-bed --out LDpruned
+# 104505 variants left
+# 
+
+#ibd estimates
+plink --bfile LDpruned --chr 1-22 --genome --out ibd
+
+awk '$10 >0.25{print$0}' ibd.genome > ibd25.txt
+# none returned -- clean data for further analysis 
+
+#PRINICIPAL COMPONENT ANALYSIS
+
+smartpca -p pca_par.par > pca1.out
+# PC1, PC2 and PC4 are the most different case and control
+
+#making covariate file
+
+awk 'NR>1 {print$0}' pcatest.evec > temp1
+sed 's/:/\t/' temp1 > temp2
+awk 'NR==1{print "FID IID PC1 PC2 PC3 PC4 PC5 PC6 PC7 PC8 PC9 PC10"}; NR>=1 {print $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12}' temp2 > narac_pcs.txt
+
+# PCs associated with case status
+plink --bfile LDpruned --logistic no-snp beta --ci .95 --covar narac_pcs.txt --out pc_aasoc
+
+
+
+# QUESTION 2 
+# -------------GWAS : MALE/FEMALE DIFFERENTIATED----------------------------
+
+# first making female and male ids txt files from narac cov file
+
+awk '$4 == 2 {print $1, $2}' narac.cov > female_ids.txt
+awk '$4 == 1 {print $1, $2}' narac.cov > male_ids.txt
+
+# Female only GWAS
+plink --bfile LDpruned --keep female_ids.txt --covar narac_pcs.txt --covar-name PC1, PC2, PC4 --logistic beta hide-covar --allow-no-sex --out gwas_females
+
+# Male only GWAS 
+plink --bfile LDpruned --keep male_ids.txt --covar narac_pcs.txt --covar-name PC1, PC2, PC4 --logistic beta hide-covar --allow-no-sex --out gwas_males
+
+# run R scripts for Manhattan and QQ plots
+
+# number of SNPs in females crossing the genome wide significance threshold
+awk '$9 < 5e-8' gwas_females.assoc.logistic | wc -l # found 4
+
+# top 10 SNPs in females
+(head -n 1 gwas_females.assoc.logistic && awk '$9 != "P" && $9 != "NA"' gwas_females.assoc.logistic | grep "ADD"| sort -k9,9g| head -10)
+
+# number of SNPs in males crossing the genome wide significance threshold
+awk '$9 < 5e-8' gwas_males.assoc.logistic | wc -l # none
+
+# top 10 SNPs in males
+(head -n 1 gwas_males.assoc.logistic && awk '$9 != "P" && $9 != "NA"' gwas_males.assoc.logistic | grep "ADD"| sort -k9,9g| head -10)
+
+#---------- META ANALYSIS USING METAL ----------------------------------------
+
+# making files for metal from the 2 GWAS 
+
+# check R script make_metal_input.R that merges LDpruned.bim, GWAS and Freq files 
+
+# run metal using metal metal.txt
+
+#for plotting
+sed -i '1s/P\-value/P/' METAANALYSIS1.TBL
+
+# extracting significant SNPs
+awk 'NR==1 || $12 < 5e-8' METAANALYSIS1.TBL > meta_sig_snps.txt
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

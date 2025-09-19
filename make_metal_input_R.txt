@@ -1,0 +1,33 @@
+#!/usr/bin/env Rscript
+
+args <- commandArgs(trailingOnly=TRUE)
+assoc_file <- args[1]  #for logistic file
+bim_file <- args[2]    # for bim file - info about both alleles 
+freq_file <- args[3]
+output <- args[4]      # for writing output file
+
+assoc <- read.table(assoc_file, header = TRUE)
+assoc <- subset(assoc, TEST == "ADD" & P != "NA")
+
+colnames(assoc)[colnames(assoc) == "A1"] <- "coded_allele"
+colnames(assoc)[colnames(assoc) == "CHR"] <- "CHR_assoc"
+
+bim <- read.table(bim_file, header = FALSE)
+colnames(bim) <- c("CHR_bim", "SNP", "CM", "BP", "coded_allele", "noncoded_allele")
+
+freq <- read.table(freq_file, header = TRUE)
+freq <- freq[, c("SNP","MAF")]
+colnames(freq)[2]<-"FREQ"
+
+merged1 <- merge(assoc, bim, by = "SNP")
+
+merged1$SE <- merged1$BETA / merged1$STAT #SE = BETA/Z (STAT is Z here)
+print(colnames(merged1))
+
+merged <- merge(merged1,freq,by="SNP")
+
+metal <- merged[, c("SNP", "CHR_bim", "BP.x","coded_allele.x","noncoded_allele","BETA","SE","P","FREQ")]
+colnames(metal) <- c("SNP","CHR","BP","A1","A2", "BETA","SE", "P","FREQ")
+
+write.table(metal, output, sep="\t",quote=FALSE, row.names=FALSE)
+
